@@ -30,15 +30,8 @@ func main() {
 			log.Fatalf("Error reading from %s: %v", file, err)
 		}
 
-		root, err := html.Parse(bytes.NewReader(data))
+		buf, err := renderHtml(data, baseDir, outdir)
 		if err != nil {
-			log.Fatalf("Error parsing HTML: %v", err)
-		}
-		if err := processHTML(root, baseDir, outdir); err != nil {
-			log.Fatalf("Error processing HTML: %v", err)
-		}
-		var buf bytes.Buffer
-		if err := html.Render(&buf, root); err != nil {
 			log.Fatalf("Error rendering HTML: %v", err)
 		}
 
@@ -47,66 +40,86 @@ func main() {
 		if err := os.MkdirAll(filepath.Dir(outPath), 0o750); err != nil {
 			log.Fatalf("Error creating output directory: %v", err)
 		}
-		if err := os.WriteFile(outPath, buf.Bytes(), 0o666); err != nil {
+		if err := os.WriteFile(outPath, buf, 0o666); err != nil {
 			log.Fatalf("Error writing file: %v", err)
 		}
 	}
 }
 
-func processHTML(root *html.Node, baseDir string, outDir string) error {
-	for node := range root.ChildNodes() {
-		if node.Type != html.ElementNode {
-			continue
-		}
-		if node.Data == "link" {
-			i := slices.IndexFunc(node.Attr, func(attr html.Attribute) bool {
-				return attr.Key == "rel" && attr.Val == "stylesheet"
-			})
-			if i == -1 {
+func renderHtml(data []byte, baseDir, outDir string) ([]byte, error) {
+	root, err := html.Parse(bytes.NewReader(data))
+	if err != nil {
+		return nil, err
+	}
+	toRemove := []*html.Node{}
+
+	var processHTML func(root *html.Node) error
+	processHTML = func(root *html.Node) error {
+		for node := range root.ChildNodes() {
+			if node.Type != html.ElementNode {
 				continue
 			}
+			switch node.Data {
+			case "link":
+				i := slices.IndexFunc(node.Attr, func(attr html.Attribute) bool {
+					return attr.Key == "rel" && attr.Val == "stylesheet"
+				})
+				if i == -1 {
+					continue
+				}
 
-			i = slices.IndexFunc(node.Attr, func(attr html.Attribute) bool {
-				return attr.Key == "href"
-			})
-			if i == -1 {
-				continue
+				i = slices.IndexFunc(node.Attr, func(attr html.Attribute) bool {
+					return attr.Key == "href"
+				})
+				if i == -1 {
+					continue
+				}
+
+				stylesheet := bundle("./"+filepath.Join(baseDir, node.Attr[i].Val), outDir)
+				styleNode, err := html.ParseFragment(strings.NewReader("<style>"+stylesheet+"</style>"), node.Parent)
+				if err != nil {
+					return err
+				}
+
+				node.Parent.InsertBefore(styleNode[0], node)
+				toRemove = append(toRemove, node)
+			case "script":
+				i := slices.IndexFunc(node.Attr, func(attr html.Attribute) bool {
+					return attr.Key == "src"
+				})
+				if i == -1 {
+					continue
+				}
+
+				script := bundle("./"+filepath.Join(baseDir, node.Attr[i].Val), outDir)
+				scriptNode, err := html.ParseFragment(strings.NewReader("<script type=\"module\">"+script+"</script>"), node.Parent)
+				if err != nil {
+					return err
+				}
+				node.Parent.InsertBefore(scriptNode[0], node)
+				toRemove = append(toRemove, node)
+			default:
+				if err := processHTML(node); err != nil {
+					return err
+				}
 			}
-
-			stylesheet := bundle("./"+filepath.Join(baseDir, node.Attr[i].Val), outDir)
-			styleNode, err := html.ParseFragment(strings.NewReader("<style>"+stylesheet+"</style>"), node.Parent)
-			if err != nil {
-				return err
-			}
-
-			node.Parent.InsertBefore(styleNode[0], node)
-			node.Parent.RemoveChild(node)
-			continue
 		}
-		if node.Data == "script" {
-			i := slices.IndexFunc(node.Attr, func(attr html.Attribute) bool {
-				return attr.Key == "src"
-			})
-			if i == -1 {
-				continue
-			}
 
-			script := bundle("./"+filepath.Join(baseDir, node.Attr[i].Val), outDir)
-			scriptNode, err := html.ParseFragment(strings.NewReader("<script type=\"module\">"+script+"</script>"), node.Parent)
-			if err != nil {
-				return err
-			}
-			node.Parent.InsertBefore(scriptNode[0], node)
-			node.Parent.RemoveChild(node)
-			continue
-		}
-
-		for child := range node.ChildNodes() {
-			processHTML(child, baseDir, outDir)
-		}
+		return nil
 	}
 
-	return nil
+	if err := processHTML(root); err != nil {
+		return nil, err
+	}
+	for _, el := range toRemove {
+		el.Parent.RemoveChild(el)
+	}
+
+	var buf bytes.Buffer
+	if err := html.Render(&buf, root); err != nil {
+		return nil, err
+	}
+	return buf.Bytes(), nil
 }
 
 func bundle(path, outDir string) string {
