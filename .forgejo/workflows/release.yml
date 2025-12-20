@@ -16,6 +16,8 @@ jobs:
     steps:
       - uses: https://code.forgejo.org/actions/checkout@v6
       - uses: https://code.forgejo.org/actions/setup-go@v6
+        with:
+          go-version-file: go.mod
       - run: GOOS=${{ matrix.versions.goos }} GOARCH=${{ matrix.versions.goarch }} go build
       - run: tar -acf monopack-${{ matrix.versions.goos }}.tar.xz monopack
       - run: mkdir -p dist
