@@ -8,5 +8,5 @@ runs:
         mkdir -p bin && cd bin
         curl -LO 'https://codeberg.org/noClaps/monopack/releases/download/latest/monopack-linux.tar.xz'
         tar -xf monopack-linux.tar.xz
-        export PATH="$PWD:$PATH"
+        install monopack /usr/local/bin/
       shell: bash
