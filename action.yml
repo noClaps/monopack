@@ -1,0 +1,11 @@
+name: Setup monopack
+description: Setup monopack
+
+runs:
+  using: composite
+  steps:
+    - uses: https://code.forgejo.org/actions/setup-go@v6
+      with:
+        go-version: stable
+    - run: go install codeberg.org/noclaps/monopack@latest
+      shell: bash
