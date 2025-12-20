@@ -1,0 +1,50 @@
+/* Root */
+:root {
+    --mono: ui-monospace, monospace;
+    --bg: black;
+    --text: white;
+
+    font-family: var(--mono);
+    background-color: var(--bg);
+    color: var(--text);
+}
+
+body {
+    padding: 1rem;
+    margin: 0;
+}
+
+/* Input */
+main {
+    display: flex;
+    line-height: 2;
+}
+
+input {
+    border: none;
+    font-family: var(--mono);
+    font-size: 1rem;
+    background-color: var(--bg);
+    color: var(--text);
+    padding: 0;
+    flex-grow: 1;
+    margin-left: 1ch;
+    height: 2rem;
+
+    &:focus-visible {
+        outline: transparent;
+    }
+}
+
+/* Log */
+pre {
+    margin: 0;
+    line-height: 2;
+    font-size: 1rem;
+    font-family: var(--mono);
+    white-space: break-spaces;
+}
+
+a {
+    color: var(--text);
+}
