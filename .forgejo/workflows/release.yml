@@ -26,3 +26,4 @@ jobs:
         with:
           direction: upload
           release-dir: ./dist
+          token: ${{ secrets.ACTIONS_RELEASE_TOKEN }}
