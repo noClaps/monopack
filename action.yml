@@ -4,8 +4,9 @@ description: Setup monopack
 runs:
   using: composite
   steps:
-    - uses: https://code.forgejo.org/actions/setup-go@v6
-      with:
-        go-version: stable
-    - run: go install codeberg.org/noclaps/monopack@latest
+    - run: |
+        mkdir -p bin && cd bin
+        curl -LO 'https://codeberg.org/noClaps/monopack/releases/download/latest/monopack-linux.tar.xz'
+        tar -xf monopack-linux.tar.xz
+        export PATH="$PWD:$PATH"
       shell: bash
